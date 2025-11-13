@@ -1,48 +1,48 @@
 """
-Database Schemas
+Database Schemas for Mental Wellness App
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
-
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+Each Pydantic model represents a MongoDB collection.
+Collection name = lowercase of class name (e.g., MoodLog -> "moodlog").
 """
-
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List, Literal
+from datetime import datetime
 
-# Example schemas (replace with your own):
+# Users may be anonymous; we use anonymous_id to associate local device data with backend
+class UserProfile(BaseModel):
+    anonymous_id: str = Field(..., description="Device-scoped anonymous identifier")
+    name: Optional[str] = Field(None, description="Display name if provided")
+    language: Literal['en', 'ta'] = Field('en', description="Language preference: en (English) or ta (Tamil)")
+    goals: List[Literal['stress', 'focus', 'sleep']] = Field(default_factory=list)
+    notify_enabled: bool = Field(True)
+    notify_times: List[str] = Field(default_factory=lambda: ['09:00'])
+    privacy_anonymous_mode: bool = Field(True, description="If true, treat as anonymous and avoid storing sensitive text")
+    reduced_motion: bool = Field(False)
 
-class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+class MoodLog(BaseModel):
+    anonymous_id: str
+    mood: Literal[1,2,3,4,5] = Field(..., description="1=Very low, 5=Joyful")
+    emoji: Literal['😞','😐','🙂','😊','😁']
+    note: Optional[str] = Field(None, max_length=200)
+    tags: List[Literal['work','family','sleep','food']] = Field(default_factory=list)
+    logged_at: datetime = Field(default_factory=datetime.utcnow)
 
-class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
+class SuggestionEngagement(BaseModel):
+    anonymous_id: str
+    suggestion_id: str
+    action: Literal['viewed','completed','favorited']
+    reason: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
-# Add your own schemas here:
-# --------------------------------------------------
+class JournalEntry(BaseModel):
+    anonymous_id: str
+    text: str = Field(..., max_length=1500)
+    mood_at_time: Optional[int] = Field(None, ge=1, le=5)
+    voice_note_url: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+class AppEvent(BaseModel):
+    anonymous_id: str
+    event: Literal['mood_logged','suggestion_viewed','suggestion_completed','journal_saved','onboarding_completed','daily_active_user','retention7','retention30']
+    meta: Optional[dict] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
